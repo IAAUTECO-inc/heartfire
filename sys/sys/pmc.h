@@ -60,7 +60,7 @@
  * The patch version is incremented for every bug fix.
  */
 #define	PMC_VERSION_MAJOR	0x0A
-#define	PMC_VERSION_MINOR	0x00
+#define	PMC_VERSION_MINOR	0x01
 #define	PMC_VERSION_PATCH	0x0000
 
 #define	PMC_VERSION		(PMC_VERSION_MAJOR << 24 |		\
@@ -110,6 +110,7 @@ extern char pmc_cpuid[PMC_CPUID_LEN];
     __PMC_CPU(INTEL_EMERALD_RAPIDS,	0xA0,	"Intel Emerald Rapids")		\
     __PMC_CPU(INTEL_ALDERLAKEN,		0xA1,	"Intel AlderlakeN")		\
     __PMC_CPU(INTEL_GRANITE_RAPIDS,	0xA2,	"Intel Granite Rapids")		\
+    __PMC_CPU(INTEL_METEOR_LAKE,	0xA3,	"Intel Meteorlake")		\
     __PMC_CPU(PPC_7450,			0x300,	"PowerPC MPC7450")		\
     __PMC_CPU(PPC_E500,			0x340,	"PowerPC e500 Core")		\
     __PMC_CPU(PPC_970,			0x380,	"IBM PowerPC 970")		\
@@ -346,7 +347,8 @@ enum pmc_event {
 	__PMC_OP(PMCSTOP, "Stop a PMC")					\
 	__PMC_OP(WRITELOG, "Write a cookie to the log file")		\
 	__PMC_OP(CLOSELOG, "Close log file")				\
-	__PMC_OP(GETDYNEVENTINFO, "Get dynamic events list")
+	__PMC_OP(GETDYNEVENTINFO, "Get dynamic events list")		\
+	__PMC_OP(GETCAPS, "Get capabilities")
 
 enum pmc_ops {
 #undef	__PMC_OP
@@ -638,6 +640,17 @@ struct pmc_op_getdyneventinfo {
 	struct pmc_dyn_event_descr	pm_events[PMC_EV_DYN_COUNT];
 };
 
+/*
+ * OP GETCAPS
+ *
+ * Retrieve the PMC capabilties flags for this type of counter.
+ */
+
+struct pmc_op_caps {
+	pmc_id_t	pm_pmcid;	/* allocated pmc id */
+	uint32_t	pm_caps;	/* capabilities */
+};
+
 #ifdef _KERNEL
 
 #include <sys/malloc.h>
@@ -649,7 +662,9 @@ struct pmc_op_getdyneventinfo {
 #define	PMC_HASH_SIZE				1024
 #define	PMC_MTXPOOL_SIZE			2048
 #define	PMC_LOG_BUFFER_SIZE			256
+#define	PMC_LOG_BUFFER_SIZE_MAX			(16 * 1024)
 #define	PMC_NLOGBUFFERS_PCPU			32
+#define	PMC_NLOGBUFFERS_PCPU_MEM_MAX		(32 * 1024)
 #define	PMC_NSAMPLES				256
 #define	PMC_CALLCHAIN_DEPTH			128
 #define	PMC_THREADLIST_MAX			128
@@ -1040,6 +1055,7 @@ struct pmc_classdep {
 	/* description */
 	int (*pcd_describe)(int _cpu, int _ri, struct pmc_info *_pi,
 		struct pmc **_ppmc);
+	int (*pcd_get_caps)(int _ri, uint32_t *_caps);
 
 	/* class-dependent initialization & finalization */
 	int (*pcd_pcpu_init)(struct pmc_mdep *_md, int _cpu);
